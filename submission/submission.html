@@ -82,7 +82,7 @@
    </div>
     
     <button id="skip">
-      Skip Ad in 5
+      Skip Ad...
     </button>
   </div>
 
@@ -94,42 +94,7 @@
       }
 
       const skipButton = document.getElementById('skip');
-      
-      let countdownValue = 5;
-      let countdownTimer = null;
-      let clickCount = 0;
-      
-      function updateSkipButton() {
-        if (countdownValue > 0) {
-          skipButton.textContent = 'Skip Ad in ' + countdownValue;
-        } else {
-          skipButton.textContent = 'Skip Ad';
-        }
-      }
-      
-      function startCountdown() {
-        clearInterval(countdownTimer);
-        countdownValue = 5;
-        clickCount = 0;
-        skipButton.style.transform = 'scale(1)';
-        updateSkipButton();
 
-        countdownTimer = setInterval(() => {
-          countdownValue--;
-          updateSkipButton();
-
-          if (countdownValue <= 0) {
-            clearInterval(countdownTimer);
-          }
-        }, 1000);
-       }
-      
-      function growSkipButton() {
-        clickCount++;
-        const scaleAmount = 1 + (clickCount * 0.08);
-        skipButton.style.transform = 'scale(' + scaleAmount + ')';
-      }
-      
       // Listen for messages from the game shell
       window.addEventListener('message', (event) => {
         if (!event.data || !event.data.type) return;
