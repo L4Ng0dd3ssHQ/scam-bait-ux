@@ -35,6 +35,7 @@
   border-radius: 6px 0 0 6px;
   font-size: 18px;
   cursor: pointer; 
+  transition: transform 0.2s ease;
 }
 
 #buffering-overlay {
@@ -93,7 +94,42 @@
       }
 
       const skipButton = document.getElementById('skip');
+      
+      let countdownValue = 5;
+      let countdownTimer = null;
+      let clickCount = 0;
+      
+      function updateSkipButton() {
+        if (countdownValue > 0) {
+          skipButton.textContent = 'Skip Ad in ' + countdownValue;
+        } else {
+          skipButton.textContent = 'Skip Ad';
+        }
+      }
+      
+      function startCountdown() {
+        clearInterval(countdownTimer);
+        countdownValue = 5;
+        clickCount = 0;
+        skipButton.style.transform = 'scale(1)';
+        updateSkipButton();
 
+        countdownTimer = setInterval(() => {
+          countdownValue--;
+          updateSkipButton();
+
+          if (countdownValue <= 0) {
+            clearInterval(countdownTimer);
+          }
+        }, 1000);
+       }
+      
+      function growSkipButton() {
+        clickCount++;
+        const scaleAmount = 1 + (clickCount * 0.08);
+        skipButton.style.transform = 'scale(' + scaleAmount + ')';
+      }
+      
       // Listen for messages from the game shell
       window.addEventListener('message', (event) => {
         if (!event.data || !event.data.type) return;
@@ -101,6 +137,7 @@
         if (event.data.type === 'adStarted') {
           // Show the skip button when the ad starts
           skipButton.style.display = 'block';
+          startCountdown();
         }
 
         // By default, if the user doesn't "skip" the ad before the video ends,
@@ -114,6 +151,11 @@
 
       // Your ad overlay code goes here, we've added a simple example below:
       skipButton.addEventListener('click', () => {
+        if (countdownValue > 0) {
+          growSkipButton();
+          return;
+        }
+
         skipButton.style.display = 'none';
         adSuccess();
       });
