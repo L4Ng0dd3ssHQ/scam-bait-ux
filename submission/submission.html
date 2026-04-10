@@ -80,143 +80,57 @@
       font-size: 14px;
       opacity: 0.85;
     }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
   </style>
 </head>
-
 <body>
-  <div id="overlay-container">
-    <div id="buffering-overlay">
-      <div id="buffering-box">
-        <div id="spinner"></div>
-        <div id="buffering-title">Connection unstable</div>
-        <div id="buffering-text">Buffering...</div>
-      </div>
+
+<div id="overlay-container">
+  <div id="skip">Skip</div>
+
+  <div id="buffering-overlay">
+    <div id="buffering-box">
+      <div id="spinner"></div>
+      <div id="buffering-title">Buffering…</div>
+      <div id="buffering-text">Please wait a moment</div>
     </div>
-
-    <button id="skip">Skip Ad in 10</button>
   </div>
+</div>
 
-  <script type="text/javascript">
-    (function (window, document) {
-      function sendToParent(message) {
-        window.top.postMessage(message, '*');
-      }
+<script>
+  const bufferingEveryMs = 5000;
+  const bufferingDurationMs = 10000;
 
-      const skipButton = document.getElementById('skip');
-      const bufferingOverlay = document.getElementById('buffering-overlay');
+  let bufferingTimer = null;
+  let bufferingLoop = null;
+  let adRunning = false;
 
-      const countdownStart = 10;
-      const bufferingEveryMs = 7000;
-      const bufferingDurationMs = 2200;
+  let isBuffering = false; // <-- NEW
 
-      let countdownValue = countdownStart;
-      let countdownTimer = null;
-      let clickCount = 0;
-      let bufferingTimer = null;
-      let bufferingLoop = null;
-      let adRunning = false;
+  const bufferingOverlay = document.getElementById('buffering-overlay');
 
-      function updateSkipButton() {
-        if (countdownValue > 0) {
-          skipButton.textContent = 'Skip Ad in ' + countdownValue;
-        } else {
-          skipButton.textContent = 'Skip Ad';
-        }
-      }
+  function showBuffering() {
+    if (isBuffering) return; // <-- NEW
+    isBuffering = true;      // <-- NEW
 
-      function startCountdown() {
-        clearInterval(countdownTimer);
-        countdownValue = countdownStart;
-        updateSkipButton();
+    bufferingOverlay.style.display = 'block';
+    sendToParent({ type: 'pause' });
 
-        countdownTimer = setInterval(() => {
-          countdownValue--;
-          updateSkipButton();
+    bufferingTimer = setTimeout(hideBuffering, bufferingDurationMs);
+  }
 
-          if (countdownValue <= 0) {
-            clearInterval(countdownTimer);
-          }
-        }, 1000);
-      }
+  function hideBuffering() {
+    bufferingOverlay.style.display = 'none';
+    isBuffering = false; // <-- NEW
+    sendToParent({ type: 'resume' });
+  }
 
-      function resetSkipButton() {
-        clickCount = 0;
-        skipButton.style.transform = 'scale(1)';
-      }
+  function sendToParent(message) {
+    window.parent.postMessage(message, '*');
+  }
 
-      function growSkipButton() {
-        clickCount++;
-        const scaleAmount = 1 + (clickCount * 0.08);
-        skipButton.style.transform = 'scale(' + scaleAmount + ')';
-      }
+  bufferingLoop = setInterval(showBuffering, bufferingEveryMs);
+</script>
 
-      function showBuffering() {
-        bufferingOverlay.style.display = 'block';
-        sendToParent({ type: 'pause' });
-      }
-
-      function hideBuffering() {
-        bufferingOverlay.style.display = 'none';
-        sendToParent({ type: 'play' });
-      }
-
-      function triggerBuffering() {
-        if (!adRunning || bufferingOverlay.style.display === 'block') {
-          return;
-        }
-
-        showBuffering();
-        startCountdown();
-
-        clearTimeout(bufferingTimer);
-        bufferingTimer = setTimeout(() => {
-          hideBuffering();
-        }, bufferingDurationMs);
-      }
-
-      window.addEventListener('message', (event) => {
-        if (!event.data || !event.data.type) return;
-
-        if (event.data.type === 'adStarted') {
-          adRunning = true;
-          skipButton.style.display = 'block';
-          hideBuffering();
-          resetSkipButton();
-          startCountdown();
-
-          clearInterval(bufferingLoop);
-          bufferingLoop = setInterval(() => {
-            triggerBuffering();
-          }, bufferingEveryMs);
-        }
-
-        if (event.data.type === 'adFinished') {
-          adRunning = false;
-          clearInterval(countdownTimer);
-          clearInterval(bufferingLoop);
-          clearTimeout(bufferingTimer);
-          hideBuffering();
-          skipButton.style.display = 'none';
-          window.top.postMessage({ type: 'fail' }, '*');
-        }
-      });
-
-      skipButton.addEventListener('click', () => {
-        if (!adRunning) return;
-
-        growSkipButton();
-
-        if (countdownValue <= 0) {
-          triggerBuffering();
-        }
-      });
-    })(window, document);
-  </script>
 </body>
 </html>
+
