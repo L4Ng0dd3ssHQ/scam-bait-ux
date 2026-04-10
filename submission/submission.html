@@ -80,57 +80,151 @@
       font-size: 14px;
       opacity: 0.85;
     }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
 </head>
+
 <body>
-
-<div id="overlay-container">
-  <div id="skip">Skip</div>
-
-  <div id="buffering-overlay">
-    <div id="buffering-box">
-      <div id="spinner"></div>
-      <div id="buffering-title">Buffering…</div>
-      <div id="buffering-text">Please wait a moment</div>
+  <div id="overlay-container">
+    <div id="buffering-overlay">
+      <div id="buffering-box">
+        <div id="spinner"></div>
+        <div id="buffering-title">Connection unstable</div>
+        <div id="buffering-text">Buffering...</div>
+      </div>
     </div>
+
+    <button id="skip">Skip Ad in 5</button>
   </div>
-</div>
 
-<script>
-  const bufferingEveryMs = 5000;
-  const bufferingDurationMs = 10000;
+  <script type="text/javascript">
+    (function (window, document) {
+      function sendToParent(message) {
+        window.top.postMessage(message, '*');
+      }
 
-  let bufferingTimer = null;
-  let bufferingLoop = null;
-  let adRunning = false;
+      const skipButton = document.getElementById('skip');
+      const bufferingOverlay = document.getElementById('buffering-overlay');
 
-  let isBuffering = false; // <-- NEW
+      const countdownStart = 5;
+      const bufferingEveryMs = 7000;
+      const bufferingDurationMs = 2200;
 
-  const bufferingOverlay = document.getElementById('buffering-overlay');
+      let countdownValue = countdownStart;
+      let countdownTimer = null;
+      let clickCount = 0;
+      let bufferingTimer = null;
+      let bufferingLoop = null;
+      let adRunning = false;
 
-  function showBuffering() {
-    if (isBuffering) return; // <-- NEW
-    isBuffering = true;      // <-- NEW
+      let isBuffering = false; // <-- NEW
 
-    bufferingOverlay.style.display = 'block';
-    sendToParent({ type: 'pause' });
+      function updateSkipButton() {
+        if (countdownValue > 0) {
+          skipButton.textContent = 'Skip Ad in ' + countdownValue;
+        } else {
+          skipButton.textContent = 'Skip Ad';
+        }
+      }
 
-    bufferingTimer = setTimeout(hideBuffering, bufferingDurationMs);
-  }
+      function startCountdown() {
+        clearInterval(countdownTimer);
+        countdownValue = countdownStart;
+        updateSkipButton();
 
-  function hideBuffering() {
-    bufferingOverlay.style.display = 'none';
-    isBuffering = false; // <-- NEW
-    sendToParent({ type: 'resume' });
-  }
+        countdownTimer = setInterval(() => {
+          countdownValue--;
+          updateSkipButton();
 
-  function sendToParent(message) {
-    window.parent.postMessage(message, '*');
-  }
+          if (countdownValue <= 0) {
+            clearInterval(countdownTimer);
+          }
+        }, 1000);
+      }
 
-  bufferingLoop = setInterval(showBuffering, bufferingEveryMs);
-</script>
+      function resetSkipButton() {
+        clickCount = 0;
+        skipButton.style.transform = 'scale(1)';
+      }
 
+      function growSkipButton() {
+        clickCount++;
+        const scaleAmount = 1 + (clickCount * 0.08);
+        skipButton.style.transform = 'scale(' + scaleAmount + ')';
+      }
+
+      function showBuffering() {
+        if (isBuffering) return; // <-- NEW
+        isBuffering = true;      // <-- NEW
+
+        bufferingOverlay.style.display = 'block';
+        sendToParent({ type: 'pause' });
+      }
+
+      function hideBuffering() {
+        bufferingOverlay.style.display = 'none';
+        isBuffering = false; // <-- NEW
+        sendToParent({ type: 'play' });
+      }
+
+      function triggerBuffering() {
+        if (!adRunning || bufferingOverlay.style.display === 'block') {
+          return;
+        }
+
+        showBuffering();
+        startCountdown();
+
+        clearTimeout(bufferingTimer);
+        bufferingTimer = setTimeout(() => {
+          hideBuffering();
+        }, bufferingDurationMs);
+      }
+
+      window.addEventListener('message', (event) => {
+        if (!event.data || !event.data.type) return;
+
+        if (event.data.type === 'adStarted') {
+          adRunning = true;
+          skipButton.style.display = 'block';
+          hideBuffering();
+          resetSkipButton();
+          startCountdown();
+
+          clearInterval(bufferingLoop);
+          bufferingLoop = setInterval(() => {
+            triggerBuffering();
+          }, bufferingEveryMs);
+        }
+
+        if (event.data.type === 'adFinished') {
+          adRunning = false;
+          clearInterval(countdownTimer);
+          clearInterval(bufferingLoop);
+          clearTimeout(bufferingTimer);
+          hideBuffering();
+          skipButton.style.display = 'none';
+          window.top.postMessage({ type: 'fail' }, '*');
+        }
+      });
+
+      skipButton.addEventListener('click', () => {
+        if (!adRunning) return;
+
+        growSkipButton();
+
+        if (countdownValue <= 0) {
+          triggerBuffering();
+        }
+      });
+    })(window, document);
+  </script>
 </body>
 </html>
+
 
